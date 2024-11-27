@@ -5,10 +5,12 @@ mod wordlist;
 mod writer;
 
 use reader::Reader;
-use wordlist::DedupUnsorted;
+use wordlist::*;
 use writer::Writer;
 use crate::params::Params;
 use crate::print::print_err;
+
+use unicode_segmentation::UnicodeSegmentation;
 
 type RunResult = Result<(),Box<dyn std::error::Error>>;
 
@@ -37,27 +39,22 @@ fn stock_mode(
         reader::read_from_stdin(buf_reader)
     };
 
-    let entries = buffer.trim().split('\n').filter(|e| !e.is_empty());
-    let n_entries = entries.clone().count();
-    {
-        let wbuf_size = n_entries * std::mem::size_of::<&str>();
-        let available_memory = memory::available_memory();
-        if !memory::is_memory_enough_with(available_memory, wbuf_size) {
-            print_err!("Not enough memory to complete the operation(s)");
-            std::process::exit(1);
-        }
-    }
+    let mut wordlist = Vec::from_buffer(buffer);
 
-    let mut wordlist : Vec<&str> = if params.has_length_range() {
+    if params.has_length_range() {
         let min_len = params.min_len.unwrap_or(0);
         let max_len = params.max_len.unwrap_or(usize::MAX);
-        entries.filter(|&s| {
+        wordlist.retain(|s| {
             let entry_len = s.len();
             (min_len <= entry_len) & (entry_len <= max_len)
-        }).collect()
-    } else {
-        entries.collect()
-    };
+        })
+    }
+
+    if params.reverse {
+        wordlist.iter_mut().for_each(|e| {
+            *e = e.graphemes(true).rev().collect::<String>()
+        });
+    }
 
     if params.sort && params.unique {
         wordlist.sort_unstable();
@@ -87,6 +84,8 @@ fn pipe_mode(
     let mut unique_entries = Vec::new();
     loop {
         reader::pipe_read(buf_reader, buffer);
+
+        *buffer = buffer.trim().to_owned();
         if buffer.is_empty() {
             // reached EOF
             break;
@@ -103,11 +102,17 @@ fn pipe_mode(
                 buffer.clear();
                 continue;
             }
-            unique_entries.push(buffer.clone());
-            if !memory::enough_memory_left() {
-                print_err!("Not enough memory left to complete the operation(s)");
+            let buffer_size = buffer.len();
+            let available_memory = memory::available_memory();
+            if !memory::is_memory_enough_with(available_memory, buffer_size) {
+                print_err!("Not enough memory to complete the operation(s)");
                 std::process::exit(1);
             }
+            unique_entries.push(buffer.clone());
+        }
+
+        if params.reverse {
+            *buffer = buffer.graphemes(true).rev().collect::<String>();
         }
 
         writer::pipe_write(buf_writer, buffer);

@@ -11,7 +11,7 @@ pub(crate) use clap::Parser;
 /// The input wordlist shall contain one entry per line and will be treated as
 /// if it does, which means that if one line contains multiple entries they
 /// will be treated as if they were only one.
-/// The input wordlist shall also contain only valid UTF8 characters and the
+/// The input wordlist shall also contain only valid Unicode characters and the
 /// process will exit-fail if it does not.
 #[derive(Parser)]
 #[command(about, version)]
@@ -63,6 +63,9 @@ pub(crate) struct Params {
     /// iteration.
     #[arg(long, action=clap::ArgAction::SetTrue)]
     pub(crate) unique: bool,
+    /// Reverse each entry (not the wordlist itself)
+    #[arg(long, action=clap::ArgAction::SetTrue)]
+    pub(crate) reverse: bool,
     /// Discard entries shorter than the given length
     #[arg(long, value_name="N", action=clap::ArgAction::Set)]
     pub(crate) min_len: Option<usize>,
@@ -219,7 +222,7 @@ impl Params {
 
     /// Checks the scheduled operations to ensure they are consistent
     fn validate_operations(&self) {
-        if !self.sort && !self.unique && self.min_len.is_none() && self.max_len.is_none() {
+        if !self.sort && !self.unique && !self.reverse && self.min_len.is_none() && self.max_len.is_none() {
             print_err!("No manipulation option is set");
             print_err!("This is equivalent to a no-op");
             std::process::exit(1);
