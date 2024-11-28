@@ -8,7 +8,7 @@ use reader::Reader;
 use wordlist::*;
 use writer::Writer;
 use crate::params::Params;
-use crate::print::print_err;
+use crate::print::*;
 
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -105,8 +105,9 @@ fn pipe_mode(
             let buffer_size = buffer.len();
             let available_memory = memory::available_memory();
             if !memory::is_memory_enough_with(available_memory, buffer_size) {
-                print_err!("Not enough memory to complete the operation(s)");
-                std::process::exit(1);
+                exit_err!(
+                    ("Not enough memory to complete the operation(s)")
+                );
             }
             unique_entries.push(buffer.clone());
         }

@@ -7,7 +7,6 @@ use wormod::run;
 
 fn main() {
     if let Err(e) = run(Params::parse().validate()) {
-        print_err!("{}", e.to_string());
-        std::process::exit(1);
+        exit_err!(("{}", e.to_string()));
     }
 }

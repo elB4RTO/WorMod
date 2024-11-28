@@ -1,4 +1,4 @@
-use crate::print::print_err;
+use crate::print::*;
 
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -10,9 +10,10 @@ pub(super) fn open_input_file(path: &PathBuf) -> File {
         .read(true)
         .open(path)
         .map_err(|e| {
-            print_err!("Failed to open input file: {:?}", path);
-            print_err!("Reason of the failure: {}", e.to_string());
-            std::process::exit(1);
+            exit_err!(
+                ("Failed to open input file: {:?}", path),
+                ("Reason of the failure: {}", e.to_string())
+            );
         }).unwrap()
 }
 
@@ -24,18 +25,20 @@ pub(super) fn open_output_file(path: &PathBuf, append_mode: bool) -> File {
         .truncate(!append_mode)
         .open(path)
         .map_err(|e| {
-            print_err!("Failed to open output file: {:?}", path);
-            print_err!("Reason of the failure: {}", e.to_string());
-            std::process::exit(1);
+            exit_err!(
+                ("Failed to open output file: {:?}", path),
+                ("Reason of the failure: {}", e.to_string())
+            );
         }).unwrap()
 }
 
 pub(super) fn file_size(file: &File, path: &PathBuf) -> usize {
     file.metadata()
         .map_err(|e| {
-            print_err!("Failed to retrieve file size: {:?}", path);
-            print_err!("Reason of the failure: {}", e.to_string());
-            std::process::exit(1);
+            exit_err!(
+                ("Failed to retrieve file size: {:?}", path),
+                ("Reason of the failure: {}", e.to_string())
+            );
         }).unwrap()
         .size() as usize
 }

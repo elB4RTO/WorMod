@@ -1,4 +1,4 @@
-use crate::print::print_err;
+use crate::print::*;
 
 use std::path::PathBuf;
 
@@ -89,8 +89,9 @@ impl Params {
         self.validate_output_path();
         if let (Some(in_path), Some(out_path)) = (self.input.as_ref(), self.output.as_ref()) {
             if in_path == out_path {
-                print_err!("Input and output paths resolve to the same resource: {:?}", in_path);
-                std::process::exit(1);
+                exit_err!(
+                    ("Input and output paths resolve to the same resource: {:?}", in_path)
+                );
             }
         }
     }
@@ -102,30 +103,35 @@ impl Params {
         }
         let p = self.input.clone().unwrap();
         if self.no_follow_symlinks && p.contains_symlinks() {
-            print_err!("Input path contains symlinks: {:?}", p);
-            std::process::exit(1);
+            exit_err!(
+                ("Input path contains symlinks: {:?}", p)
+            );
         }
         match p.canonicalize() {
             Err(e) => {
-                print_err!("Failed to resolve input path: {:?}", p);
-                print_err!("Failed to canonicalize: {}", e.to_string());
-                std::process::exit(1);
+                exit_err!(
+                    ("Failed to resolve input path: {:?}", p),
+                    ("Failed to canonicalize: {}", e.to_string())
+                );
             },
             Ok(path) => {
                 match std::fs::exists(path.clone()) {
                     Err(e) => {
-                        print_err!("Failed to validate input path: {:?}", path);
-                        print_err!("Error while checking for existence: {}", e.to_string());
-                        std::process::exit(1);
+                        exit_err!(
+                            ("Failed to validate input path: {:?}", path),
+                            ("Error while checking for existence: {}", e.to_string())
+                        );
                     },
                     Ok(false) => {
-                        print_err!("Input wordlist not found at path: {:?}", p);
-                        std::process::exit(1);
+                        exit_err!(
+                            ("Input wordlist not found at path: {:?}", p)
+                        );
                     },
                     Ok(true) => {
                         if path.is_dir() {
-                            print_err!("Input path is a directory: {:?}", p);
-                            std::process::exit(1);
+                            exit_err!(
+                                ("Input path is a directory: {:?}", p)
+                            );
                         }
                         self.input = Some(path);
                     },
@@ -141,44 +147,51 @@ impl Params {
         }
         let ref p = self.output.clone().unwrap();
         if self.no_follow_symlinks && p.contains_symlinks() {
-            print_err!("Output path contains symlinks: {:?}", p);
-            std::process::exit(1);
+            exit_err!(
+                ("Output path contains symlinks: {:?}", p)
+            );
         } else if p.is_dir() {
-            print_err!("Output path is a directory: {:?}", p);
-            std::process::exit(1);
+            exit_err!(
+                ("Output path is a directory: {:?}", p)
+            );
         }
         match std::fs::exists(p) {
             Err(e) => {
-                print_err!("Failed to validate output path: {:?}", p);
-                print_err!("Error while checking for existence: {}", e.to_string());
-                std::process::exit(1);
+                exit_err!(
+                    ("Failed to validate output path: {:?}", p),
+                    ("Error while checking for existence: {}", e.to_string())
+                );
             },
             Ok(true) => {
                 self.output = std::fs::canonicalize(p)
                     .map_err(|e| {
-                        print_err!("Failed to resolve output path: {:?}", p);
-                        print_err!("Failed to canonicalize: {}", e.to_string());
-                        std::process::exit(1);
+                        exit_err!(
+                            ("Failed to resolve output path: {:?}", p),
+                            ("Failed to canonicalize: {}", e.to_string())
+                        );
                     }).ok();
             },
             Ok(false) => match p.parent() {
                 Some(dir) => {
                     let file = p.file_name().unwrap_or_else(|| {
-                        print_err!("Failed to get file name in output path: {:?}", p);
-                        std::process::exit(1);
+                        exit_err!(
+                            ("Failed to get file name in output path: {:?}", p)
+                        );
                     });
                     self.output = std::fs::canonicalize(dir)
                         .map_err(|e| {
-                            print_err!("Failed to resolve output path component: {:?}", dir);
-                            print_err!("Failed to canonicalize parent directory: {}", e.to_string());
-                            std::process::exit(1);
+                            exit_err!(
+                                ("Failed to resolve output path component: {:?}", dir),
+                                ("Failed to canonicalize parent directory: {}", e.to_string())
+                            );
                         }).map(|d| {
                             d.join(file)
                         }).ok();
                 },
                 None => {
-                    print_err!("Unexpected output path: {:?}", p);
-                    std::process::exit(1);
+                    exit_err!(
+                        ("Unexpected output path: {:?}", p)
+                    );
                 }
             },
         }
@@ -189,31 +202,36 @@ impl Params {
         match (self.min_len, self.max_len) {
             (Some(min), Some(max)) => {
                 if max < min {
-                    print_err!("Invalid min-max length values: {}-{}", min, max);
-                    print_err!("Maximum length cannot be smaller than minimum length");
-                    std::process::exit(1);
+                    exit_err!(
+                        ("Invalid min-max length values: {}-{}", min, max),
+                        ("Maximum length cannot be smaller than minimum length")
+                    );
                 } else if min == usize::MAX {
-                    print_err!("Invalid min length: {}", max);
-                    print_err!("This is equivalent to a no-op");
-                    std::process::exit(1);
+                    exit_err!(
+                        ("Invalid min length: {}", max),
+                        ("This is equivalent to a no-op")
+                    );
                 } else if max == 0 {
-                    print_err!("Invalid max length: {}", max);
-                    print_err!("This is equivalent to a no-op");
-                    std::process::exit(1);
+                    exit_err!(
+                        ("Invalid max length: {}", max),
+                        ("This is equivalent to a no-op")
+                    );
                 }
             },
             (Some(min), None) => {
                 if min == usize::MAX {
-                    print_err!("Invalid min length: {}", min);
-                    print_err!("This is equivalent to a no-op");
-                    std::process::exit(1);
+                    exit_err!(
+                        ("Invalid min length: {}", min),
+                        ("This is equivalent to a no-op")
+                    );
                 }
             },
             (None, Some(max)) => {
                 if max == 0 {
-                    print_err!("Invalid max length: {}", max);
-                    print_err!("This is equivalent to a no-op");
-                    std::process::exit(1);
+                    exit_err!(
+                        ("Invalid max length: {}", max),
+                        ("This is equivalent to a no-op")
+                    );
                 }
             },
             (None, None) => (),
@@ -223,21 +241,25 @@ impl Params {
     /// Checks the scheduled operations to ensure they are consistent
     fn validate_operations(&self) {
         if !self.sort && !self.unique && !self.reverse && self.min_len.is_none() && self.max_len.is_none() {
-            print_err!("No manipulation option is set");
-            print_err!("This is equivalent to a no-op");
-            std::process::exit(1);
+            exit_err!(
+                ("No manipulation option is set"),
+                ("This is equivalent to a no-op")
+            );
         } else if self.output.is_none() && self.append_output {
-            print_err!("Incompatible option: --append-output");
-            print_err!("Cannot use append to a file without an output file");
-            std::process::exit(1);
+            exit_err!(
+                ("Incompatible option: --append-output"),
+                ("Cannot use append to a file without an output file")
+            );
         } else if self.output.is_none() && self.append_output {
-            print_err!("Incompatible option: --append-output");
-            print_err!("Cannot append to a file without an output file");
-            std::process::exit(1);
+            exit_err!(
+                ("Incompatible option: --append-output"),
+                ("Cannot append to a file without an output file")
+            );
         } else if self.pipe && self.sort {
-            print_err!("Incompatible options: --pipe --sort");
-            print_err!("Cannot sort a pipe flow");
-            std::process::exit(1);
+            exit_err!(
+                ("Incompatible options: --pipe --sort"),
+                ("Cannot sort a pipe flow")
+            );
         }
     }
 
@@ -245,14 +267,17 @@ impl Params {
     pub(crate) fn check_input_path(&self) {
         if let Some(p) = self.input.as_ref() {
             if !p.exists() {
-                print_err!("Input wordlist not found at path: {:?}", p);
-                std::process::exit(1);
+                exit_err!(
+                    ("Input wordlist not found at path: {:?}", p)
+                );
             } else if p.is_dir() {
-                print_err!("Input path is a directory: {:?}", p);
-                std::process::exit(1);
+                exit_err!(
+                    ("Input path is a directory: {:?}", p)
+                );
             } else if self.no_follow_symlinks && p.contains_symlinks() {
-                print_err!("Input path contains symlinks: {:?}", p);
-                std::process::exit(1);
+                exit_err!(
+                    ("Input path contains symlinks: {:?}", p)
+                );
             }
         }
     }
@@ -261,11 +286,13 @@ impl Params {
     pub(crate) fn check_output_path(&self) {
         if let Some(p) = self.output.as_ref() {
             if p.is_dir() {
-                print_err!("Output path is a directory: {:?}", p);
-                std::process::exit(1);
+                exit_err!(
+                    ("Output path is a directory: {:?}", p)
+                );
             } else if self.no_follow_symlinks && p.contains_symlinks() {
-                print_err!("Output path contains symlinks: {:?}", p);
-                std::process::exit(1);
+                exit_err!(
+                    ("Output path contains symlinks: {:?}", p)
+                );
             }
         }
     }
@@ -288,9 +315,10 @@ impl PathOps for PathBuf {
             path.push(component);
             match std::fs::symlink_metadata(&path) {
                 Err(e) => {
-                    print_err!("Failed to validate output path component: {:?}", path);
-                    print_err!("Failed to check symlink: {}", e.to_string());
-                    std::process::exit(1);
+                    exit_err!(
+                        ("Failed to validate output path component: {:?}", path),
+                        ("Failed to check symlink: {}", e.to_string())
+                    );
                 },
                 Ok(md) => {
                     if md.is_symlink() {

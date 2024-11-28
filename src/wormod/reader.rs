@@ -1,7 +1,7 @@
 use super::file;
 use super::memory;
 use crate::params::Params;
-use crate::print::print_err;
+use crate::print::*;
 
 use std::io::BufRead;
 use std::io::BufReader;
@@ -21,15 +21,17 @@ pub(super) fn buffered_reader(params: &Params) -> (Reader, usize) {
         let in_file = file::open_input_file(in_path);
         file_size = file::file_size(&in_file, in_path);
         if file_size == 0 {
-            print_err!("The input file is empty");
-            print_err!("This is equivalent to a no-op");
-            std::process::exit(1);
+            exit_err!(
+                ("The input file is empty"),
+                ("This is equivalent to a no-op")
+            );
         } else if params.sort || params.unique {
             // the whole file must be stored in-memory
             if file_size >= available_memory - buffer_size * 5 {
-                print_err!("Available memory is too low");
-                print_err!("Not enough memory to perform the requested operation(s)");
-                std::process::exit(1);
+                exit_err!(
+                    ("Available memory is too low"),
+                    ("Not enough memory to perform the requested operation(s)")
+                );
             }
         }
         buf_reader = BufReader::with_capacity(buffer_size, Box::new(in_file));
@@ -45,13 +47,15 @@ pub(super) fn buffered_reader(params: &Params) -> (Reader, usize) {
 pub(super) fn read_from_file(mut reader: Reader, file_size: usize) -> String {
     let available_memory = memory::available_memory();
     if !memory::is_memory_enough_with(available_memory, file_size) {
-        print_err!("Not enough memory to read the input file");
-        std::process::exit(1);
+        exit_err!(
+            ("Not enough memory to read the input file")
+        );
     }
     let mut buffer = String::with_capacity(file_size);
     if let Err(e) = reader.read_to_string(&mut buffer) {
-        print_err!("Failed to read input file: {}", e.to_string());
-        std::process::exit(1);
+        exit_err!(
+            ("Failed to read input file: {}", e.to_string())
+        );
     }
     buffer
 }
@@ -59,8 +63,9 @@ pub(super) fn read_from_file(mut reader: Reader, file_size: usize) -> String {
 pub(super) fn read_from_stdin(mut buf_reader: Reader) -> String {
     let check_memory = || {
         if !memory::enough_memory_left() {
-            print_err!("Not enough memory to keep reading");
-            std::process::exit(1);
+            exit_err!(
+                ("Not enough memory to keep reading")
+            );
         }
     };
     let mut buffer = String::new();
@@ -73,8 +78,9 @@ pub(super) fn read_from_stdin(mut buf_reader: Reader) -> String {
                 match e.kind() {
                     std::io::ErrorKind::Interrupted => continue,
                     _ => {
-                        print_err!("Failed to read: {}", e.to_string());
-                        std::process::exit(1);
+                        exit_err!(
+                            ("Failed to read: {}", e.to_string())
+                        );
                     }
                 }
             },
@@ -84,8 +90,9 @@ pub(super) fn read_from_stdin(mut buf_reader: Reader) -> String {
                 match from_utf8(&read_buf[..n]) {
                     Ok(slice) => buffer.push_str(slice),
                     Err(e) => {
-                        print_err!("Non-UTF8 character found: {}", e.to_string());
-                        std::process::exit(1);
+                        exit_err!(
+                            ("Non-UTF8 character found: {}", e.to_string())
+                        );
                     },
                 }
             },
@@ -96,7 +103,8 @@ pub(super) fn read_from_stdin(mut buf_reader: Reader) -> String {
 
 pub(super) fn pipe_read(reader: &mut Reader, buffer: &mut String) {
     if let Err(e) = reader.read_line(buffer) {
-        print_err!("Failed to read: {}", e.to_string());
-        std::process::exit(1);
+        exit_err!(
+            ("Failed to read: {}", e.to_string())
+        );
     }
 }

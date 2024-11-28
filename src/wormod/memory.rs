@@ -1,4 +1,4 @@
-use crate::print::print_err;
+use crate::print::*;
 
 use sysinfo::System;
 
@@ -42,6 +42,7 @@ pub(super) fn buffer_size(avl_mem: usize) -> usize {
 /// Terminates the process with a failure code
 fn fail_low_memory(avl_mem: usize) -> ! {
     let avl_mib = avl_mem as f64 / 1048576.0;
-    print_err!("Available memory is too low: {:.4} MiB", avl_mib);
-    std::process::exit(1);
+    exit_err!(
+        ("Available memory is too low: {:.4} MiB", avl_mib)
+    );
 }
